@@ -31,13 +31,57 @@ void onthresh(int,void*)
 	vector<vector<Point> > contours;
 	vector<Vec4i> heirarchy;
 	findContours(cannyout,contours,heirarchy,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+	//connects the bounderPoints,because the edges of some objects are disconnected ; 
+
+	for (unsigned int i = 0; i < contours.size(); i++ )
+	{
+		vector<Point> bounderPoints;
+		for (unsigned int j = 0; j < contours[i].size(); j++ )
+		{
+			if (contours[i][j].x == 1 || contours[i][j].y == 1 || contours[i][j].x ==cannyout.cols-2  || contours[i][j].y == cannyout.rows-2 )
+			{
+				bounderPoints.push_back(contours[i][j]) ;
+			}
+		}
+		unsigned int len = bounderPoints.size();
+		for (unsigned k = 0; k < len ; k++)
+		{
+			line( cannyout, bounderPoints[k], bounderPoints[(k+1)%len], Scalar(255,255,255), 1, 8 );
+		}
+	}
+	
+	findContours(cannyout,contours,heirarchy,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+	////connects the bounderPoints
+
+	//for (unsigned int i = 0; i < contours.size(); i++ )
+	//{
+	//	vector<Point> bounderPoints;
+	//	for (unsigned int j = 0; j < contours[i].size(); j++ )
+	//	{
+	//		if (contours[i][j].x == 0 || contours[i][j].y == 0)
+	//		{
+	//			bounderPoints.push_back(contours[i][j]) ;
+	//		}
+	//	}
+	//	unsigned int len = bounderPoints.size();
+	//	for (unsigned k = 0; k < len ; k++)
+	//	{
+	//		line( srccop, bounderPoints[k], bounderPoints[(k+1)%len], color, 1, 8 );
+	//	}
+	//}
+
+
 	Mat srccop;
 	srccop.create(srcgray.size(),srcgray.type());
 	srccop = Scalar::all(0);
 	vector<RotatedRect> minRect( contours.size() );
+	vector<Point2f> vcenters;
 	for( int i = 0; i < contours.size(); i++ )
 	{
 		minRect[i] = minAreaRect( Mat(contours[i]) );
+		vcenters.push_back(minRect[i].center) ;
 	}
 
 	int64 toe2 = getTickCount();
@@ -47,20 +91,62 @@ void onthresh(int,void*)
 
 	for( int i = 0; i< contours.size(); i++ )
 	{
-		Scalar color = Scalar( rng.uniform( (int)0, (int)255 ) , rng.uniform( (int)0, (int)255 ) , rng.uniform( (int)0, (int)255 ) );
+		Scalar color = Scalar( 255, 255, 255 );
 		drawContours( srccop, contours, i, color, 1 , 8, heirarchy, 0, Point() );
 
-		Point2f rect_points[4]; minRect[i].points( rect_points );
+		Point2f rect_points[4]; 
+		minRect[i].points( rect_points );
 
 		circle(srccop,minRect[i].center,3,color,-1);
 		for( int j = 0; j < 4; j++ )
 			line( srccop, rect_points[j], rect_points[(j+1)%4], color, 1, 8 );
 	}
 
+	////connects the bounderPoints
+
+	//for (unsigned int i = 0; i < contours.size(); i++ )
+	//{
+	//	vector<Point> bounderPoints;
+	//	for (unsigned int j = 0; j < contours[i].size(); j++ )
+	//	{
+	//		if (contours[i][j].x == 1 || contours[i][j].y == 1)
+	//		{
+	//			bounderPoints.push_back(contours[i][j]) ;
+	//		}
+	//	}
+	//	unsigned int len = bounderPoints.size();
+	//	for (unsigned k = 0; k < len ; k++)
+	//	{
+	//		line( srccop, bounderPoints[k], bounderPoints[(k+1)%len], Scalar(255,255,255), 1, 8 );
+	//	}
+	//}
+
 	/// Show in a window
 	namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
 	imshow( "Contours", srccop );
 
+	////试图用已经测定的巨型轮廓来得到封闭的轮廓，由于目标与图像边缘重合方法不适用;
+	//vector<vector<Point> > contoursHandled;
+	//vector<Vec4i> heirarchyHandled;
+	//findContours(srccop,contoursHandled,heirarchyHandled,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE,Point(0,0));
+
+	//Mat srccopHandled;
+	//srccopHandled.create(srcgray.size(),srcgray.type());
+	//srccopHandled = Scalar::all(0);
+
+	//for( int i = 0; i< contoursHandled.size(); i++ )
+	//{
+	//	Scalar color = Scalar( 255, 255, 255 );
+	//	drawContours( srccopHandled, contoursHandled, i, color, 1 , 8, heirarchyHandled, 0, Point() );
+
+	//	Point2f rect_points[4]; minRect[i].points( rect_points );
+
+	//	circle(srccop,minRect[i].center,2,color,-1);
+	//}
+
+	///// Show in a window
+	//namedWindow( "ContoursHandled", CV_WINDOW_AUTOSIZE );
+	//imshow( "ContoursHandled", srccopHandled );
 }
 
 int main()
@@ -81,13 +167,13 @@ int main()
 	Mat srcMroph;
 	morphologyEx(src,srcMroph,MORPH_CLOSE,Morphelement);
 
-	int bordersize = 2;
+	/*int bordersize = 2;
 	Mat borderimg;
 	Scalar value = Scalar(srcMroph.at<Vec3b>(60,1)[0],srcMroph.at<Vec3b>(60,1)[1],srcMroph.at<Vec3b>(60,1)[2]);
 	copyMakeBorder( srcMroph, borderimg, bordersize, bordersize, bordersize, bordersize, BORDER_CONSTANT, value );
 	namedWindow("borderimg",1);
 	imshow("borderimg",borderimg);
-	waitKey(0);
+	waitKey(0);*/
 
 	//get the gray image;
 	cvtColor(srcMroph,srcgray,CV_BGR2GRAY);
